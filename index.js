@@ -1,16 +1,13 @@
-var express = require('express');
-var app = express();
-var fs = require("fs");
-
+const express = require('express');
+const multer = require('multer');
+const fs = require('fs');
+const app = express();
 var mongoose = require('mongoose');
 var { File } = require('./fileModel');
 
-var bodyParser = require('body-parser');
-var multer = require('multer');
-
-var MONGO_URI = 'mongodb://gazda:gazda.321@ds159387.mlab.com:59387/yammat';
-var UPLOAD_PATH = 'client/public/images/uploads';
-var PORT = 7000;
+const MONGO_URI = 'mongodb://gazda:gazda.321@ds159387.mlab.com:59387/yammat';
+const PORT = 7000;
+var UPLOAD_PATH = 'www/public/images/';
 
 /***
  * DB
@@ -20,51 +17,49 @@ mongoose.Promise = global.Promise;
 mongoose.set('useCreateIndex', true);
 mongoose.connect(MONGO_URI, { useNewUrlParser: true });
 
+/**
+ * STORAGE
+ */
+var storage = multer.diskStorage({
+	destination: function(req, file, cb){
+			cb(null, UPLOAD_PATH);
+	},
+	filename: function(req, file, cb){
+			cb(null, file.originalname);
+	}
+});
+var upload = multer({ storage: storage }).single('file');
 
-/***
+/**
  * SERVER
  */
-app.use(express.static('public'));
-app.use(bodyParser.urlencoded({extended: false}));
-var upload = multer({dest: UPLOAD_PATH})
-
-app.post('/api/upload', upload.single("file"), function (req, res) {
-   var filePath = `${UPLOAD_PATH}/${req.file.originalname}`;
-   
-   fs.readFile(req.file.path, function (err, data) {
-      fs.writeFile(filePath, data, function (err) {
-            if (err) {
-               res.status(500).send({
-                  message: 'error', 
-                  filename: req.file.originalname,
-                  error: err 
-               })
-            } else {
-               var file = new File({
-                  path: `images/uploads/${req.file.originalname}`,
-                  fs_path:  `${UPLOAD_PATH}/${req.file.originalname}`
-               });
-               file.save()
-                  .then(doc => {
-                     console.log(doc)
-                     res.status(200).send({
-                        message: 'success', 
-                        filename: req.file.originalname, 
-                        filelocation: `${UPLOAD_PATH}/${req.file.originalname}`, 
-                        path: `images/uploads/${req.file.originalname}`,
-                        db: doc
-                     })
-                  })
-                  .catch(error => res.status(500).send({ error })) 
-            }
-         });
-      });
+app.get('/api/files', (req, res) => {
+	File.find({}).then(files => {
+		res.status(200).send(files);
+	}).catch(error => res.status(500).send({ error }))
 })
 
-var server = app.listen(PORT, function () {
-   var port = server
-      .address()
-      .port
+app.post('/api/file', upload, (req, res) => {
+	var file = new File({
+		path: `images/${req.file.originalname}`,
+		fs_path:  `${req.file.destination}${req.file.originalname}`
+	});
+	file.save()
+		.then(doc => {
+			res.status(200).send(doc)
+		})
+		.catch(error => res.status(500).send({ error })) 
+});
 
-   console.log("[SERVER] => %s", port)
+app.delete('/api/file/:id', (req, res) => {
+	File.findByIdAndRemove(req.params.id, function(err, doc) {
+		if (err) res.status(500).send({ err })
+		fs.unlink(doc.fs_path, (err) => {
+			if (err) throw err;
+			res.status(200).send(doc)
+		 });
+		
+	})
 })
+
+app.listen(PORT, () => console.log(`[SERVER] => ${PORT}`));
