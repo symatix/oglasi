@@ -22,7 +22,7 @@ const Admin = props => {
    return (
       <div>
          <Form />
-         <Grid container className={props.classes.root} spacing={2}>
+         <Grid container className={props.classes.root} spacing={8}>
             {renderImages()}
          </Grid>
       </div>

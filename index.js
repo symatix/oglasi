@@ -69,6 +69,13 @@ app.delete('/api/file/:id', (req, res) => {
 	})
 })
 
-
+if (process.env.NODE_ENV === 'production') {
+	app.use(express.static('www/build'));
+ 
+	const path = require('path');
+	app.get('*', (req, res) => {
+	  res.sendFile(path.resolve(__dirname, 'www', 'build', 'index.html'));
+	});
+ }
 
 server.listen(config.port, () => console.log(`[SERVER] => ${config.port}`));

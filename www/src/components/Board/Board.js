@@ -25,7 +25,7 @@ class Board extends React.Component {
 			} else {
 				this.setState({ index: 0 });
 			}
-		}, 1000);
+		}, 180000);
    }
    
 	componentWillUnmount() {

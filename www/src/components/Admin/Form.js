@@ -13,6 +13,7 @@ const styles = theme => ({
    },
 });
 
+
 class Form extends Component {
    constructor(props) {
       super(props);
@@ -29,6 +30,10 @@ class Form extends Component {
             'type': "formData"
          }
       });
+   }
+
+   handleTime(e){
+      console.log(e.target.value)
    }
 
    render() {
