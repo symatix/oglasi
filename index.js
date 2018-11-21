@@ -1,13 +1,16 @@
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
+const http = require("http");
+const socketIo = require("socket.io");
 const app = express();
-var mongoose = require('mongoose');
-var { File } = require('./fileModel');
+const mongoose = require('mongoose');
+const { File } = require('./fileModel');
+const config = require('./config');
 
 const MONGO_URI = 'mongodb://gazda:gazda.321@ds159387.mlab.com:59387/yammat';
 const PORT = 7000;
-var UPLOAD_PATH = 'www/public/images/';
+const UPLOAD_PATH = 'www/public/images/';
 
 /***
  * DB
@@ -15,14 +18,14 @@ var UPLOAD_PATH = 'www/public/images/';
 require('./fileModel.js');
 mongoose.Promise = global.Promise;
 mongoose.set('useCreateIndex', true);
-mongoose.connect(MONGO_URI, { useNewUrlParser: true });
+mongoose.connect(config.mongoUri, { useNewUrlParser: true });
 
 /**
  * STORAGE
  */
 var storage = multer.diskStorage({
 	destination: function(req, file, cb){
-			cb(null, UPLOAD_PATH);
+			cb(null, config.uploadPath);
 	},
 	filename: function(req, file, cb){
 			cb(null, file.originalname);
@@ -30,9 +33,14 @@ var storage = multer.diskStorage({
 });
 var upload = multer({ storage: storage }).single('file');
 
+
 /**
  * SERVER
  */
+const server = http.createServer(app);
+const io = socketIo(server);
+app.io = io;
+
 app.get('/api/files', (req, res) => {
 	File.find({}).then(files => {
 		res.status(200).send(files);
@@ -46,20 +54,21 @@ app.post('/api/file', upload, (req, res) => {
 	});
 	file.save()
 		.then(doc => {
-			res.status(200).send(doc)
+			app.io.emit('update')
 		})
 		.catch(error => res.status(500).send({ error })) 
 });
 
 app.delete('/api/file/:id', (req, res) => {
-	File.findByIdAndRemove(req.params.id, function(err, doc) {
+	File.findByIdAndDelete(req.params.id, function(err, doc) {
 		if (err) res.status(500).send({ err })
 		fs.unlink(doc.fs_path, (err) => {
 			if (err) throw err;
-			res.status(200).send(doc)
+			app.io.emit('update')
 		 });
-		
 	})
 })
 
-app.listen(PORT, () => console.log(`[SERVER] => ${PORT}`));
+
+
+server.listen(config.port, () => console.log(`[SERVER] => ${config.port}`));

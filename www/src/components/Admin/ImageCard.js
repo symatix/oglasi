@@ -1,5 +1,5 @@
 import React from 'react';
-import { connect } from 'react-redux';
+import axios from 'axios';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
@@ -8,7 +8,6 @@ import CardHeader from '@material-ui/core/CardHeader';
 import CardMedia from '@material-ui/core/CardMedia';
 import IconButton from '@material-ui/core/IconButton';
 import Delete from '@material-ui/icons/Delete';
-import { deleteFile } from '../../actions';
 
 const styles = theme => ({
    card: {
@@ -23,8 +22,8 @@ const styles = theme => ({
 class ImageCard extends React.Component {
 
    handleDelete = () => {
-      const { _id, deleteFile } = this.props;
-      deleteFile(_id)
+      const { _id } = this.props;
+      axios.delete(`/api/file/${_id}`);
    };
 
   render() {
@@ -57,4 +56,4 @@ ImageCard.propTypes = {
   _id: PropTypes.string.isRequired
 };
 
-export default connect(null, { deleteFile})(withStyles(styles)(ImageCard));
+export default withStyles(styles)(ImageCard);

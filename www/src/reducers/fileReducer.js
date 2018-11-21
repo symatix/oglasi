@@ -7,10 +7,7 @@ export default function (state = [], action) {
             return action.payload;
 
       case ADD_FILE:
-         return [
-            ...state,
-            action.payload
-         ];
+      return [ ...state, action.payload ];
 
       case DELETE_FILE:
          return state.filter(file => file._id !== action.payload._id);
