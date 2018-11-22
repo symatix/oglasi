@@ -13,6 +13,22 @@ const PORT = 7000;
 const UPLOAD_PATH = 'www/public/images/';
 
 /***
+ * LOGGER
+ */
+let logger = {};
+const infoStream = fs.createWriteStream('logs/info.txt');
+const errorStream = fs.createWriteStream('logs/error.txt');
+logger.info = function (msg) {
+	var message = new Date().toISOString() + " : " + msg + "\n";
+	infoStream.write(message);
+};
+logger.error = function (msg) {
+	var message = new Date().toISOString() + " : " + msg + "\n";
+	errorStream.write(message);
+};
+
+
+/***
  * DB
  */
 require('./fileModel.js');
@@ -43,8 +59,12 @@ app.io = io;
 
 app.get('/api/files', (req, res) => {
 	File.find({}).then(files => {
+		logger.info(`files fetched from db`)
 		res.status(200).send(files);
-	}).catch(error => res.status(500).send({ error }))
+	}).catch(error => {
+		logger.error(`error fetching data: ${JSON.stringify(error, null, 2)}`)
+		res.status(500).send({ error })
+	})
 })
 
 app.post('/api/file', upload, (req, res) => {
@@ -54,16 +74,24 @@ app.post('/api/file', upload, (req, res) => {
 	});
 	file.save()
 		.then(doc => {
+			logger.info(`data saved: ${JSON.stringify(doc, null, 2)}`)
 			app.io.emit('update')
 		})
-		.catch(error => res.status(500).send({ error })) 
+		.catch(error => {
+			logger.error(`error saving data: ${JSON.stringify(error, null, 2)}`)
+			res.status(500).send({ error })
+		}) 
 });
 
 app.delete('/api/file/:id', (req, res) => {
-	File.findByIdAndDelete(req.params.id, function(err, doc) {
-		if (err) res.status(500).send({ err })
+	File.findByIdAndDelete(req.params.id, function(error, doc) {
+		if (error) {
+			logger.error(`error deleting data from DB: ${JSON.stringify(error, null, 2)}`);
+			res.status(500).send({ err })
+		}
 		fs.unlink(doc.fs_path, (err) => {
-			if (err) throw err;
+			if (err) return logger.error(`error deleting file from FS: ${JSON.stringify(err, null, 2)}`);
+			logger.info(`data deleted from DB and FS: ${JSON.stringify(doc, null, 2)}`)
 			app.io.emit('update')
 		 });
 	})
@@ -78,4 +106,8 @@ if (process.env.NODE_ENV === 'production') {
 	});
  }
 
-server.listen(config.port, () => console.log(`[SERVER] => ${config.port}`));
+server.listen(config.port, () => {
+	const msg = `[SERVER] => ${config.port}`;
+	logger.info(msg);
+	console.log(msg);
+});
