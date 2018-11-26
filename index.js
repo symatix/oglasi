@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 const http = require("http");
 const socketIo = require("socket.io");
 const app = express();
@@ -8,16 +9,13 @@ const mongoose = require('mongoose');
 const { File } = require('./fileModel');
 const config = require('./config');
 
-const MONGO_URI = 'mongodb://gazda:gazda.321@ds159387.mlab.com:59387/yammat';
-const PORT = 7000;
-const UPLOAD_PATH = 'www/public/images/';
 
 /***
  * LOGGER
  */
 let logger = {};
-const infoStream = fs.createWriteStream('logs/info.txt');
-const errorStream = fs.createWriteStream('logs/error.txt');
+const infoStream = fs.createWriteStream(path.join(__dirname, 'logs/info.txt'));
+const errorStream = fs.createWriteStream(path.join(__dirname, 'logs/error.txt'));
 logger.info = function (msg) {
 	var message = new Date().toISOString() + " : " + msg + "\n";
 	infoStream.write(message);
@@ -44,7 +42,7 @@ var storage = multer.diskStorage({
 			cb(null, config.uploadPath);
 	},
 	filename: function(req, file, cb){
-			cb(null, file.originalname);
+			cb(null, `${Date.now()}-${file.originalname}`);
 	}
 });
 var upload = multer({ storage: storage }).single('file');
@@ -69,8 +67,8 @@ app.get('/api/files', (req, res) => {
 
 app.post('/api/file', upload, (req, res) => {
 	var file = new File({
-		path: `images/${req.file.originalname}`,
-		fs_path:  `${req.file.destination}${req.file.originalname}`
+		path: `/images/${req.file.filename}`,
+		fs_path: `${__dirname}/${req.file.destination}${req.file.filename}`
 	});
 	file.save()
 		.then(doc => {
@@ -98,11 +96,14 @@ app.delete('/api/file/:id', (req, res) => {
 })
 
 if (process.env.NODE_ENV === 'production') {
-	app.use(express.static('www/build'));
- 
-	const path = require('path');
-	app.get('*', (req, res) => {
-	  res.sendFile(path.resolve(__dirname, 'www', 'build', 'index.html'));
+	console.log("[SERVER] => production mode detected")
+	let root = path.join(__dirname, '..', 'oglasi/www/public');
+	app.use(express.static(root));
+	app.use(function(req, res, next) {
+	if (req.method === 'GET' && req.accepts('html') && !req.is('json') && 
+		!req.path.includes('.')) {
+				res.sendFile('index.html', { root });
+		} else next();
 	});
  }
 
